@@ -16,8 +16,7 @@ import java.util.concurrent.ThreadLocalRandom;
 public class Authentication {
     private static final Logger log = LogManager.getLogger(Authentication.class);
     private static ConcurrentHashMap<Long, String> credentials;
-    private static ConcurrentHashMap<Long, Long> tokens;
-    private static ConcurrentHashMap<Long, Long> tokensReversed;
+    private static TokenTable tokens;
 
     // curl -i
     //      -X POST
@@ -32,7 +31,7 @@ public class Authentication {
     public Response register(@FormParam("login") String user,
                              @FormParam("password") String password) {
 
-        if (user == null || password == null) {
+        if (user == null || user.equals("") || password == null || password.equals("")) {
             return Response.status(Response.Status.BAD_REQUEST).build();
         }
 
@@ -50,11 +49,6 @@ public class Authentication {
 
     static {
         credentials = new ConcurrentHashMap<>();
-        credentials.put(1L, "admin");
-        tokens = new ConcurrentHashMap<>();
-        tokens.put(1L, 1L);
-        tokensReversed = new ConcurrentHashMap<>();
-        tokensReversed.put(1L, 1L);
     }
 
     // curl -X POST
@@ -69,7 +63,7 @@ public class Authentication {
     public Response authenticateUser(@FormParam("login") String user,
                                      @FormParam("password") String password) {
 
-        if (user == null || password == null) {
+        if (user == null || user.equals("") || password == null || password.equals("")) {
             return Response.status(Response.Status.BAD_REQUEST).build();
         }
 
@@ -79,11 +73,11 @@ public class Authentication {
                 return Response.status(Response.Status.UNAUTHORIZED).build();
             }
             // Issue a token for the user
-            long token = issueToken(user);
+            Token token = issueToken(user);
             log.info("User '{}' logged in", user);
 
             // Return the token on the response
-            return Response.ok(Long.toString(token)).build();
+            return Response.ok(token.toString()).build();
 
         } catch (Exception e) {
             return Response.status(Response.Status.UNAUTHORIZED).build();
@@ -107,9 +101,12 @@ public class Authentication {
         try {
 
             Long token = Long.parseLong(requestContext.getHeaderString(HttpHeaders.AUTHORIZATION).substring("Bearer".length()).trim());
-            Long ID = tokensReversed.get(token);
-            tokens.remove(ID);
-            tokensReversed.remove(token);
+
+            Long ID = tokens.getID(token);
+
+            tokens.remove(token);
+
+
             log.info("User ID: '{}' logged out", ID);
 
             // Return the token on the response
@@ -127,35 +124,16 @@ public class Authentication {
 
     public static Long getID(Long token)
     {
-        return tokensReversed.get(token);
+        return tokens.getID(token);
     }
 
-    private Long issueToken(String user) {
+    private Token issueToken(String user) {
         Long ID=profile.getID(user);
-        Long token = tokens.get(ID);
-        if (token != null) {
-            return token;
-        }
-        if (ID==0L)
-            ID=profile.newPlayer(user);
-        token = ThreadLocalRandom.current().nextLong();
-        tokens.put(ID, token);
-        tokensReversed.put(token, ID);
-        return token;
+
+        return TokenTable.issueToken(ID);
     }
 
-    static public List<Long> getLoggedUsers()
-    {
-        List<Long> res =new ArrayList<>();
-        tokensReversed.forEachValue(1,ID -> res.add(ID));
-        return res;
-    }
 
-    static void validateToken(String rawToken) throws Exception {
-        Long token = Long.parseLong(rawToken);
-        if (!tokensReversed.containsKey(token)) {
-            throw new Exception("Token validation exception");
-        }
-        log.info("Correct token from '{}'", tokensReversed.get(token));
-    }
+
+
 }

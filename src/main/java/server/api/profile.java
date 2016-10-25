@@ -24,11 +24,8 @@ public class profile {
     private static ConcurrentHashMap<String,Long> IDs;
 
     static {
-        Player admin = new Player("admin");
         IDs=new ConcurrentHashMap<>();
-        IDs.put("admin",1L);
         players=new ConcurrentHashMap<>();
-        players.put(1L,admin);
     }
 
     @Authorized
@@ -37,16 +34,14 @@ public class profile {
     @Consumes("application/x-www-form-urlencoded")
     @Produces("text/plain")
     public Response rename(ContainerRequestContext requestContext, @FormParam("name") String name) {
-        log.info(name);
+        if(name==null || name.equals(""))
+            return Response.status(Response.Status.NOT_ACCEPTABLE).build();
         if((IDs.get(name))!=null)
             return Response.status(Response.Status.NOT_ACCEPTABLE).build();
         String oldName;
         Long ID = Authentication.getID(Long.parseLong(requestContext.getHeaderString(HttpHeaders.AUTHORIZATION).substring("Bearer".length()).trim()));
-        log.info(ID);
         Player player = players.get(ID);
-        log.info(player);
         oldName=player.getName();
-        log.info(oldName);
         player.rename(name);
         IDs.remove(oldName);
         IDs.put(name,ID);

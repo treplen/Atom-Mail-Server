@@ -4,6 +4,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import server.auth.Authentication;
 import server.auth.Authorized;
+import server.auth.TokenTable;
 
 import javax.ws.rs.*;
 import javax.ws.rs.core.Response;
@@ -24,7 +25,7 @@ public class data {
     @Produces("application/json")
     public Response getUsers() {
         String res = "{\n\t\"players\": [\n";
-        List<Long> IDs = Authentication.getLoggedUsers();
+        List<Long> IDs = TokenTable.getLoggedUsers();
         for(Iterator<Long> i = IDs.iterator(); i.hasNext();)
         {
             res+=profile.getPlayer(i.next()).writeJson(2);
